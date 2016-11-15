@@ -39,23 +39,17 @@ class LegacyDFSClusterTest extends PHPUnit_Framework_TestCase
 
     public function testCreate()
     {
-        $statement = $this->createDbalStatementMock();
-        $statement
-            ->expects($this->once())
-            ->method('rowCount')
-            ->will($this->returnValue(1));
-
         $this->dbalMock
             ->expects($this->once())
             ->method('prepare')
             ->with($this->anything())
-            ->will($this->returnValue($statement));
+            ->will($this->returnValue($this->createDbalStatementMock()));
 
         $spiCreateStruct = new SPIBinaryFileCreateStruct();
         $spiCreateStruct->id = 'prefix/my/file.png';
         $spiCreateStruct->mimeType = 'image/png';
         $spiCreateStruct->size = 123;
-        $spiCreateStruct->mtime = 1307155200;
+        $spiCreateStruct->mtime = new DateTime('@1307155200');
 
         $this->assertInstanceOf(
             'eZ\Publish\SPI\IO\BinaryFile',

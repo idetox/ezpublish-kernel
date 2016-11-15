@@ -9,7 +9,6 @@
 namespace eZ\Publish\Core\IO\IOMetadataHandler;
 
 use DateTime;
-use eZ\Publish\Core\Base\Exceptions\BadStateException;
 use eZ\Publish\Core\IO\IOMetadataHandler;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DBALException;
@@ -47,11 +46,8 @@ class LegacyDFSCluster implements IOMetadataHandler
     /**
      * Inserts a new reference to file $spiBinaryFileId.
      *
-     * @throws \eZ\Publish\API\Repository\Exceptions\InvalidArgumentException If a file $spiBinaryFileId already exists
-     *
      * @param string  $spiBinaryFileId
      *
-     * @throws \eZ\Publish\API\Repository\Exceptions\BadStateException if an error occurs creating the record
      * @throws RuntimeException if a DBAL error occurs
      *
      * @return \eZ\Publish\SPI\IO\BinaryFile
@@ -71,23 +67,24 @@ INSERT INTO ezdfsfile
   VALUES (:name, :name_hash, :name_trunk, :mtime, :size, :scope, :datatype)
 ON DUPLICATE KEY UPDATE
   datatype=VALUES(datatype), scope=VALUES(scope), size=VALUES(size),
-  mtime=VALUES(mtime), expired=VALUES(expired)
+  mtime=VALUES(mtime)
 SQL
             );
             $stmt->bindValue('name', $path);
             $stmt->bindValue('name_hash', md5($path));
             $stmt->bindValue('name_trunk', $this->getNameTrunk($binaryFileCreateStruct));
-            $stmt->bindValue('mtime', $binaryFileCreateStruct->mtime);
+            $stmt->bindValue(
+                'mtime',
+                $binaryFileCreateStruct->mtime instanceof DateTime
+                    ? $binaryFileCreateStruct->mtime->getTimestamp()
+                    : $binaryFileCreateStruct->mtime
+            );
             $stmt->bindValue('size', $binaryFileCreateStruct->size);
             $stmt->bindValue('scope', $this->getScope($binaryFileCreateStruct));
             $stmt->bindValue('datatype', $binaryFileCreateStruct->mimeType);
             $stmt->execute();
         } catch (DBALException $e) {
             throw new RuntimeException("A DBAL error occured while writing $path", 0, $e);
-        }
-
-        if ($stmt->rowCount() == 0) {
-            throw new BadStateException('LegacyDFSCluster', 'Unexpected rowCount after creating');
         }
 
         return $this->mapSPIBinaryFileCreateStructToSPIBinaryFile($binaryFileCreateStruct);

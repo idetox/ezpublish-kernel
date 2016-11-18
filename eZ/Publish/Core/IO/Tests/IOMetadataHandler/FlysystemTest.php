@@ -166,4 +166,100 @@ class FlysystemTest extends PHPUnit_Framework_TestCase
         $this->filesystem->expects($this->never())->method('deleteDir');
         $this->handler->deleteDirectory('some/path');
     }
+
+    public function testCount()
+    {
+        $this->filesystem
+            ->expects($this->once())
+            ->method('listContents')
+            ->with('', true)
+            ->will($this->returnValue(
+                [
+                    ['path' => 'file1', 'size' => 42],
+                    ['path' => 'dir1'],
+                    ['path' => 'file2', 'size' => 892753],
+                    ['path' => 'dir2'],
+                    ['path' => 'file3', 'size' => 0],
+                ]
+            ));
+
+        self::assertEquals(3, $this->handler->count());
+    }
+
+    public function providerLoadList()
+    {
+        return [
+            [
+                null,
+                null,
+                [
+                    ['path' => 'file1', 'size' => 42, 'timestamp' => 0],
+                    ['path' => 'file2', 'size' => 892753, 'timestamp' => 42],
+                    ['path' => 'file3', 'size' => 0, 'timestamp' => 982374987],
+                ],
+            ],
+            [
+                0,
+                0,
+                [],
+            ],
+            [
+                1,
+                null,
+                [
+                    ['path' => 'file1', 'size' => 42, 'timestamp' => 0],
+                ],
+            ],
+            [
+                1,
+                2,
+                [
+                    ['path' => 'file3', 'size' => 0, 'timestamp' => 982374987],
+                ],
+            ],
+            [
+                1,
+                100,
+                [],
+            ],
+        ];
+    }
+
+    /**
+     * @dataProvider providerLoadList
+     */
+    public function testLoadList($limit, $offset, $resultList)
+    {
+        $expectedSpiBinaryFiles = [];
+        foreach ($resultList as $result) {
+            $expectedSpiBinaryFile = new SPIBinaryFile();
+            $expectedSpiBinaryFile->id = $result['path'];
+            $expectedSpiBinaryFile->size = $result['size'];
+            $expectedSpiBinaryFile->mtime = new DateTime('@' . $result['timestamp']);
+
+            $expectedSpiBinaryFiles[] = $expectedSpiBinaryFile;
+        }
+
+        $this->filesystem
+            ->expects($this->once())
+            ->method('listContents')
+            ->with('', true)
+            ->will($this->returnValue(
+                [
+                    ['path' => 'file1', 'size' => 42, 'timestamp' => 0],
+                    ['path' => 'dir1'],
+                    ['path' => 'file2', 'size' => 892753, 'timestamp' => 42],
+                    ['path' => 'dir2'],
+                    ['path' => 'file3', 'size' => 0, 'timestamp' => 982374987],
+                ]
+            ));
+
+        $loadedList = $this->handler->loadList($limit, $offset);
+        $this->assertEquals(count($loadedList), count($resultList));
+
+        foreach ($loadedList as $key => $spiBinaryFile) {
+            $this->assertInstanceOf('eZ\Publish\SPI\IO\BinaryFile', $spiBinaryFile);
+            $this->assertEquals($expectedSpiBinaryFiles[$key], $spiBinaryFile);
+        }
+    }
 }

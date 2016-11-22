@@ -203,22 +203,4 @@ class LegacyDFSClusterTest extends PHPUnit_Framework_TestCase
     {
         return $this->getMock('Doctrine\DBAL\Driver\Statement');
     }
-
-    public function testCount()
-    {
-        $statement = $this->createDbalStatementMock();
-
-        $statement
-            ->expects($this->once())
-            ->method('fetch')
-            ->will($this->returnValue(['count' => 42]));
-
-        $this->dbalMock
-            ->expects($this->once())
-            ->method('prepare')
-            ->with($this->anything())
-            ->will($this->returnValue($statement));
-
-        self::assertEquals(42, $this->handler->count());
-    }
 }
